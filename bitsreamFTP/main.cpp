@@ -5,10 +5,17 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
-// Function to abstract the initalizing of win sockets
+/**
+*
+*@todo cleanup code. Impliment proper interfaces
+*
+*@to begin ftp protocal
+*/
 
+// Initalize win sockets
 int init_win_sockets(WSADATA* socket_data)
 {
+
 	int result = WSAStartup(MAKEWORD(2, 2), socket_data);
 
 	if (result != 0)
@@ -17,14 +24,18 @@ int init_win_sockets(WSADATA* socket_data)
 	}
 
 	return result;
+
 }
+
 
 // Set addrinfo struct properties
 void setup_address_info(addrinfo& host_info)
 {
+
 	host_info.ai_family = AF_UNSPEC; // Ip version not specified. Can be both
 	host_info.ai_socktype = SOCK_STREAM; // Use SOCK_STREAM for TCP or SOCK_DGRAM for UDP
 	host_info.ai_protocol = IPPROTO_TCP;
+
 }
 
 
@@ -32,6 +43,7 @@ void setup_address_info(addrinfo& host_info)
 // @todo make recusive call to check all posible host info addresses from host_info list
 int connect_socket(SOCKET& my_socket, addrinfo* host_info)
 {
+
 	std::cout << "Connecting socket..........." << std::endl;
 
 	int result = connect(my_socket, host_info->ai_addr, (int)host_info->ai_addrlen);
@@ -47,6 +59,7 @@ int connect_socket(SOCKET& my_socket, addrinfo* host_info)
 	}
 
 	return result;
+
 }
 
 
@@ -62,11 +75,10 @@ SSIZE_T send_data(SOCKET& my_socket, std::string data)
 
 }
 
+
 // Recieve data through the socket into an input buffer
 SSIZE_T recieve_data(SOCKET& my_socket, char* buffer, const size_t buffer_size)
 {
-	// Read data from the socket into an input buffer
-	// Return the amount of bytes read
 
 	size_t bytes_to_read = buffer_size;
 
@@ -87,6 +99,13 @@ SSIZE_T recieve_data(SOCKET& my_socket, char* buffer, const size_t buffer_size)
 
 	return buffer_size; // The total amount of bytes recieved
 
+}
+
+
+void close_connection(SOCKET& my_socket)
+{
+	closesocket(my_socket);
+	WSACleanup();
 }
 
 
@@ -151,7 +170,6 @@ int main()
 		return 1;
 	}
 
-
 	std::string homepage = "GET / HTTP/1.1\nhost: www.google.com\n\n";
 
 	if (send_data(my_socket, homepage) == SOCKET_ERROR)
@@ -181,6 +199,8 @@ int main()
 
 	std::cout << data_buffer << std::endl;
 
+	close_connection(my_socket);
 	system("PAUSE");
+	return 0;
 	
 }
