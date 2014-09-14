@@ -6,10 +6,9 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 /**
-*
 *@todo cleanup code. Impliment proper interfaces
 *
-*@to begin ftp protocal
+*@todo begin ftp protocal
 */
 
 // Initalize win sockets
@@ -175,8 +174,7 @@ int main()
 	if (send_data(my_socket, homepage) == SOCKET_ERROR)
 	{
 		std::cout << "Error sendig data through socket connection" << std::endl;
-		closesocket(my_socket);
-		WSACleanup();
+		close_connection(my_socket);
 		return 1;
 	}
 
@@ -190,8 +188,7 @@ int main()
 	if (bytes_recieved <= 0)
 	{
 		std::cout << "Something bad happened while recieving the data" <<std::endl;
-		closesocket(my_socket);
-		WSACleanup();
+		close_connection(my_socket);
 		return 1;
 	}
 
