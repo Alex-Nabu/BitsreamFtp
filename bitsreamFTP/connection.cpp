@@ -26,7 +26,9 @@ connection::connection(std::string host, std::string port) : connection_host(hos
 
 	if (status != 0)
 	{
-		WSACleanup();
+		// Free the linked list containing host_info for the socket connection
+		freeaddrinfo(host_info_list);
+
 		throw std::runtime_error("getaddrinfo failed: ");
 	}
 
@@ -42,22 +44,7 @@ connection::connection(std::string host, std::string port) : connection_host(hos
 
 		std::string error_code = converter.str(), error_msg = "Socket creation failed with error code ";
 		
-
-		freeaddrinfo(host_info_list);
-		WSACleanup();
 		throw std::runtime_error(error_msg+error_code);
-	}
-
-	// Try to connect our socket
-	int socket_status = connect_socket();
-
-	// Free the linked list containing host_info for the socket connection
-	freeaddrinfo(host_info_list);
-
-	if (socket_status == SOCKET_ERROR)
-	{
-		WSACleanup();
-		throw std::runtime_error("Unable to establish socket connection to server. Connection.link could not be initialized");
 	}
 
 }
@@ -65,6 +52,11 @@ connection::connection(std::string host, std::string port) : connection_host(hos
 
 connection::~connection()
 {
+	// Adding this line here crashes my program. find out y
+	// Free the linked list containing host_info for the socket connection
+	//freeaddrinfo(host_info_list);
+
+
 	WSACleanup();
 	closesocket(link);
 }
@@ -82,7 +74,6 @@ int connection::connect_socket()
 
 	if (result == SOCKET_ERROR)
 	{
-		closesocket(link);
 		link = INVALID_SOCKET;
 	}
 	else

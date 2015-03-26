@@ -4,7 +4,7 @@
 int main()
 {
 	
-	std::string host = "google.com", port = "80";
+	std::string host = "ftp.ci.heliohost.org", port = "21";
 
 	try
 	{

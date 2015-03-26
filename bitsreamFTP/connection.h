@@ -1,3 +1,9 @@
+/*
+
+Description: Basically this class is one big windows socket wrapper used to make instanciating a socket less verbose
+
+*/
+
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
@@ -9,7 +15,6 @@
 #include <sstream>
 #pragma comment(lib, "Ws2_32.lib")
 
-// basically a windows socket wrapper
 class connection
 {
 public:
