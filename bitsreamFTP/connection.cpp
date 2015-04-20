@@ -1,6 +1,11 @@
 #include "connection.h"
 
-connection::connection(std::string host, std::string port) : connection_host(host), connection_port(port), link(INVALID_SOCKET)
+connection::connection(std::string host, std::string port) : 
+
+	connection_host(host),
+	connection_port(port),
+	link(INVALID_SOCKET)
+
 {
 
 	int result = WSAStartup(MAKEWORD(2, 2), &win_socket_data);
@@ -47,15 +52,15 @@ connection::connection(std::string host, std::string port) : connection_host(hos
 		throw std::runtime_error(error_msg+error_code);
 	}
 
+
 }
 
 
 connection::~connection()
 {
-	// Adding this line here crashes my program. find out y
-	// Free the linked list containing host_info for the socket connection
-	//freeaddrinfo(host_info_list);
 
+	// Free the linked list containing host_info for the socket connection
+	freeaddrinfo(host_info_list);
 
 	WSACleanup();
 	closesocket(link);
@@ -64,23 +69,39 @@ connection::~connection()
 
 // Connect to a socket given the necsessary info
 // @todo make recusive call to check all posible host info addresses from host_info list
-int connection::connect_socket()
+bool connection::connect_socket(bool blocking)
 {
 
+	int result = ::connect(link, host_info_list->ai_addr, (int)&host_info_list->ai_addrlen);
 
-	std::cout << "Connecting socket..........." << std::endl;
-
-	int result = connect(link, host_info_list->ai_addr, (int)&host_info_list->ai_addrlen);
-
-	if (result == SOCKET_ERROR)
+	// if the socket gave an error connecting or setting the I/O mode
+	if ( result == SOCKET_ERROR || !set_non_blocking(blocking) )
 	{
 		link = INVALID_SOCKET;
+		return false;
 	}
 	else
 	{
-		std::cout << "Connection made!!" << std::endl;
+		return true;
 	}
 
-	return result;
+}
+
+
+// Set a socket blocking or non blocking based on @blocking param
+bool connection::set_non_blocking(bool blocking)
+{
+	// If iMode!=0, non-blocking mode is enabled.
+	u_long iMode = blocking ? 0 : 1;
+
+	int result = ioctlsocket(link, FIONBIO, &iMode);
+
+	if (result != NO_ERROR)
+	{
+		link = INVALID_SOCKET;
+		return false;
+	}
+	
+	return true;
 
 }

@@ -18,18 +18,21 @@ Description: Basically this class is one big windows socket wrapper used to make
 class connection
 {
 public:
+	SOCKET link;
+	struct addrinfo host_info, *host_info_list = NULL;
+
 	connection(std::string host, std::string port);
 	~connection();
 
-	int connect_socket();
+	bool connect_socket(bool blocking = FALSE);
+	bool set_non_blocking(bool blocking);
 
 private:
 	std::string connection_host;
 	std::string connection_port;
 
 	WSADATA win_socket_data;
-	SOCKET link;
-	struct addrinfo host_info, *host_info_list = NULL;
+
 
 };
 

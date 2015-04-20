@@ -1,5 +1,5 @@
 #include <iostream>
-#include "connection.h"
+#include "ftp_client.h"
 
 int main()
 {
@@ -8,7 +8,12 @@ int main()
 
 	try
 	{
-		connection socket = connection(host, port);
+		// Create our ftp session
+		ftp_client ftp(host, port);
+
+		// Try to connect to the server
+		ftp.connect();
+
 	}
 	catch (std::runtime_error e)
 	{
