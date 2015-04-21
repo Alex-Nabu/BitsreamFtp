@@ -13,8 +13,28 @@
 #include <algorithm>
 #include "connection.h"
 
+
 class ftp_client
 {
+	// Igonore the Internal type unless u care about how the ftp response is handled
+	class ftp_response
+	{
+
+		public:
+			std::string response_string;
+
+			std::vector<std::string> response_lines;
+
+			std::string response_code;
+
+			std::string operator+(const char* additional_string);
+
+			bool complete();
+
+		private:
+			std::vector<std::string> parse_lines();
+
+	};
 
 public:
 	const static int BUFFER_SIZE = 4096;
@@ -23,33 +43,17 @@ public:
 	~ftp_client();
 
 	bool connect();
-	std::string	recieve_response();
+	bool login(std::string username, std::string password);
+	bool list();
+	bool help();
 
 private:
 	std::string host;
 	std::string port;
 	connection ftp_socket;
 
-	SSIZE_T	send_data(std::string data);
-	SSIZE_T recieve_data(char* buffer, const size_t buffer_size);
-
-	struct ftp_response
-	{
-
-		std::string response_string;
-
-		std::vector<std::string> response_lines;
-
-		std::string response_code;
-
-		std::string operator+(const char* additional_string);
-
-		std::vector<std::string> parse_lines();
-
-		bool complete();
-
-	};
-
+	void			send_command(std::string command);
+	ftp_response	recieve_response();;
 
 };
 

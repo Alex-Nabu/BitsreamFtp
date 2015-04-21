@@ -14,6 +14,12 @@ int main()
 		// Try to connect to the server
 		ftp.connect();
 
+		//Try to login to the server
+		ftp.login("alexnabu", "feind666");
+
+		// Get some server info
+		ftp.help();
+
 	}
 	catch (std::runtime_error e)
 	{

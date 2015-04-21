@@ -1,5 +1,9 @@
 /*
 	Description: Yeah baby definitions!!!
+
+	Ftp fucntions are pretty minimal ATM but the code is pretty clean and all ftp functions 
+	have been implimented in the form of function calls so its easy to add and edit the functions.
+
 */
 
 #include "ftp_client.h"
@@ -23,30 +27,107 @@ bool ftp_client::connect()
 		
 	std::cout << "Connection made!!" << std::endl;
 
+	ftp_response resp = recieve_response();
+
 	// get some server info
-	std::cout << recieve_response();
+	if (resp.response_code[0] != '2')
+		throw std::runtime_error("The server for some could not connect with error code " + resp.response_code);
+
+	// Note the server can also return a 1xx code asking to wait a bit
 
 	return true;
 
 }
 
 
+// Login to the ftp server given the user credentials
+ bool ftp_client::login(const std::string username, const std::string password)
+{
+	ftp_response resp;
+	std::string user_command = "USER " + username + "\r\n";
+	std::string password_command = "PASS " + password + "\r\n";
+
+
+	send_command(user_command);
+
+	resp =  recieve_response(); // fetch the response
+
+	if (resp.response_code[0] == '2') // If no password is required for login and we get immediate success 
+		return true;
+	
+	if (resp.response_code[0] != '3')
+		throw std::runtime_error("The server is having a problem logging In. Check USERNAME and passowrd \n"); //change this to a return false
+	
+	send_command(password_command);
+
+	resp = recieve_response(); 
+
+	if (resp.response_code[0] != '2')
+		throw std::runtime_error("The server is having a problem loging in. Check username and PASSWORD \n"); //change this to a return false
+
+	return TRUE;
+}
+
+
+ // Give me some server info
+ bool ftp_client::help()
+ {
+	 ftp_response resp;
+
+	 send_command("HELP\r\n");
+
+	 resp = recieve_response();
+
+	 if (resp.response_code[0] != '2')
+		 throw std::runtime_error("The server is having a problem. response code:"+resp.response_code+"\n"); //change this to a return false
+ }
+
+ // List all the contents of the current working dir
+ bool ftp_client::list()
+ {
+	 ftp_response resp;
+
+	 send_command("LIST\r\n");
+	 
+	 resp = recieve_response();
+
+	 if (resp.response_code[0] != '2')
+		 throw std::runtime_error("The server failed to list the contents of the dir. response code:"+resp.response_code); //change this to a return false
+
+	 return true;
+
+ }
+
+
+// Send data through the socket to an host
+void ftp_client::send_command(std::string command)
+{
+	// Convert string to c.str and send it via send method endpoint host
+	SSIZE_T bytes_sent = send(ftp_socket.link, command.c_str(), command.length(), 0);
+
+	std::cout << "Sending data............" << std::endl;
+
+}
+
+
 // Recieve data through the socket into an input buffer
-std::string  ftp_client::recieve_response()
+ftp_client::ftp_response  ftp_client::recieve_response()
 {
 
 	ftp_response response;
 
 	do
 	{
+
 		char temp_buffer[ftp_client::BUFFER_SIZE];
+
+		std::cout << "Revieving......... " << std::endl;
 
 		int bytes_recieved = recv(ftp_socket.link, temp_buffer, sizeof(temp_buffer) - 1, 0);
 
 		if (bytes_recieved < 0)
-			return response.response_code;
+			return response;
 
-		std::cout << "Revieving......... " << bytes_recieved << " bytes of data" << std::endl;
 	
 		temp_buffer[bytes_recieved] = '\0';
 
@@ -56,51 +137,12 @@ std::string  ftp_client::recieve_response()
 
 	std::cout << response.response_string << std::endl;
 
-	return response.response_code;
+	return response;
 
 }
 
 
-// Send data through the socket to an host
-SSIZE_T  ftp_client::send_data(std::string data)
-{
-	// Convert string to c.str and send it via send method endpoint host
-	SSIZE_T bytes_sent = send(ftp_socket.link, data.c_str(), data.length(), 0);
-
-	std::cout << "Sending data............" << std::endl;
-
-	return bytes_sent; // Contains sent bytes or error code
-
-}
-
-
-// Recieve data through the socket into an input buffer
-SSIZE_T ftp_client::recieve_data(char* buffer, const size_t buffer_size)
-{
-
-	size_t bytes_to_read = buffer_size;
-
-	do
-	{
-		SSIZE_T bytes_recieved = recv(ftp_socket.link, buffer, bytes_to_read-1, 0);
-
-		if (bytes_recieved < 1)
-		{
-			return bytes_recieved; // Connection closed or error occured
-		}
-
-		std::cout << "Revieving......... " << bytes_recieved << " bytes of data" << std::endl;
-
-		bytes_to_read -= bytes_recieved;
-		buffer += bytes_recieved;
-	} while (bytes_to_read > 0);
-
-	return buffer_size; // The total amount of bytes recieved
-
-}
-
-
-//==================================details of the response subclass=========================================
+// ==================================details of the response subclass=========================================
 
 // What happends when we append to our ftp_response 
 std::string ftp_client::ftp_response::operator+(const char* additional_string)
@@ -147,7 +189,7 @@ bool ftp_client::ftp_response::complete()
 
 	std::string lastline = response_lines.back(); //lastline of response we have
 
-	if (lastline.size() < 4) //Four character of the ftp response should be a empty space
+	if (lastline.size() < 4) //Fourth character of the lastline of ftp response should be a empty space
 		return false;
 
 	if (lastline[3] == ' ')
