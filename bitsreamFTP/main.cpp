@@ -18,7 +18,7 @@ int main()
 		ftp.login("alexnabu", "feind666");
 
 		// Get some server info
-		ftp.help();
+		std::cout << ftp.help();
 
 	}
 	catch (std::runtime_error e)

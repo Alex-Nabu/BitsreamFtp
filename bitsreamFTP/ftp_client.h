@@ -44,8 +44,8 @@ public:
 
 	bool connect();
 	bool login(std::string username, std::string password);
-	bool list();
-	bool help();
+	std::string list();
+	std::string help();
 
 private:
 	std::string host;

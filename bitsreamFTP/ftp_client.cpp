@@ -22,7 +22,6 @@ bool ftp_client::connect()
 	if (!ftp_socket.connect_socket(TRUE))
 	{
 		throw std::runtime_error("could not connect to. Check the socket details. (its I/O settings or its host and port address)");
-		return false;
 	}
 		
 	std::cout << "Connection made!!" << std::endl;
@@ -41,7 +40,7 @@ bool ftp_client::connect()
 
 
 // Login to the ftp server given the user credentials
- bool ftp_client::login(const std::string username, const std::string password)
+bool ftp_client::login(const std::string username, const std::string password)
 {
 	ftp_response resp;
 	std::string user_command = "USER " + username + "\r\n";
@@ -65,12 +64,12 @@ bool ftp_client::connect()
 	if (resp.response_code[0] != '2')
 		throw std::runtime_error("The server is having a problem loging in. Check username and PASSWORD \n"); //change this to a return false
 
-	return TRUE;
+	return true;
 }
 
 
  // Give me some server info
- bool ftp_client::help()
+std::string ftp_client::help()
  {
 	 ftp_response resp;
 
@@ -80,10 +79,12 @@ bool ftp_client::connect()
 
 	 if (resp.response_code[0] != '2')
 		 throw std::runtime_error("The server is having a problem. response code:"+resp.response_code+"\n"); //change this to a return false
+
+	 return resp.response_string;
  }
 
  // List all the contents of the current working dir
- bool ftp_client::list()
+std::string ftp_client::list()
  {
 	 ftp_response resp;
 
@@ -94,7 +95,7 @@ bool ftp_client::connect()
 	 if (resp.response_code[0] != '2')
 		 throw std::runtime_error("The server failed to list the contents of the dir. response code:"+resp.response_code); //change this to a return false
 
-	 return true;
+	 return resp.response_string;
 
  }
 
@@ -142,7 +143,7 @@ ftp_client::ftp_response  ftp_client::recieve_response()
 }
 
 
-// ==================================details of the response subclass=========================================
+// ==================================details of the response subtype=========================================
 
 // What happends when we append to our ftp_response 
 std::string ftp_client::ftp_response::operator+(const char* additional_string)
