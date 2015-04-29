@@ -16,7 +16,7 @@
 
 class ftp_client
 {
-	// Igonore the Internal type unless u care about how the ftp response is handled
+	// Internal type to handle ftp control replies
 	class ftp_response
 	{
 
@@ -42,19 +42,29 @@ public:
 	ftp_client(std::string host, std::string port = "21");
 	~ftp_client();
 
-	bool connect();
-	bool login(std::string username, std::string password);
-	std::string list();
-	std::string help();
+	bool			connect();
+	bool			login(std::string username, std::string password);
+	std::string		list();
+	std::string		help();
+	std::string		pwd();
+	bool			cwd(std::string dir);
 
 private:
-	std::string host;
-	std::string port;
-	connection ftp_socket;
+	std::string		host;
+	std::string		port;
+	connection		control_connection;
+	connection*		data_connection; // This is a pointer because we only know the port number which is required for construction after the fact
+
+	bool			set_data_representation_type(std::string type = "I");
 
 	void			send_command(std::string command);
-	ftp_response	recieve_response();;
+	ftp_response	recieve_response();
 
+	bool			set_passive_mode();
+	bool			setup_passive_data_connection();
+	std::string		parse_data_connection_info(std::string lastline);
+
+	bool			set_active_mode(); 
 };
 
 #endif

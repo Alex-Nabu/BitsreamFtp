@@ -8,7 +8,7 @@
 
 #include "ftp_client.h"
 
-ftp_client::ftp_client(std::string host, std::string port) : host(host), port(port), ftp_socket(host, port) {}
+ftp_client::ftp_client(std::string host, std::string port) : host(host), port(port), control_connection(host, port) {}
 
 ftp_client::~ftp_client() {}
 
@@ -19,7 +19,7 @@ bool ftp_client::connect()
 
 	std::cout << "Connecting ..........." << std::endl;
 
-	if (!ftp_socket.connect_socket(TRUE))
+	if (!control_connection.connect_socket(TRUE))
 	{
 		throw std::runtime_error("could not connect to. Check the socket details. (its I/O settings or its host and port address)");
 	}
@@ -67,8 +67,87 @@ bool ftp_client::login(const std::string username, const std::string password)
 	return true;
 }
 
+// Set ftp data connections in passive mode
+// Set up passive data connection 
+bool ftp_client::set_passive_mode()
+{
+	ftp_response resp;
 
- // Give me some server info
+	send_command("PASV\r\n");
+
+	resp = recieve_response();
+
+	if (resp.response_code[0] != '2')
+		return false;
+
+	//Now set the data port
+	std::string connection_info = parse_data_connection_info(resp.response_lines.back()); // give us the string with the host/port info
+
+	std::vector<std::string> peices; // our temp vector to hold em parts
+	std::stringstream ss(connection_info); // our stream of words
+	std::string temp; // our temp word storage location
+
+	while (std::getline(ss, temp, ',')) // Break it up. deliminator comma
+		peices.push_back(temp);
+
+	// Now to get the port
+	int pp1 = std::stoi(peices[4]);
+	int pp2 = std::stoi(peices[5]);
+	int port_number = (pp1 * 256) + pp2;
+
+
+	// Now to get the host IP and port in strings
+	char dot = '.';
+	std::string host = peices[0] + dot + peices[1] + dot + peices[2] + dot + peices[3];
+	std::string port = std::to_string(port_number);
+
+	// Set the ftp_client::data connection
+	data_connection = new connection(host, port); 
+
+	return true;
+}
+
+// Set ftp data connections in active mode
+// Setup active data connection
+bool ftp_client::set_active_mode()
+{
+	// @todo : write code to support active mode here
+	// @howto : bind the ftp_client::data_connecion to a random port and send its info over to server
+	return false;
+}
+
+
+bool ftp_client::setup_passive_data_connection()
+{
+	ftp_response resp;
+
+	data_connection->connect_socket(); // Set up the data connection
+
+	resp = recieve_response();
+
+	if (resp.response_code != "150")
+		throw std::runtime_error("failed to setup data connection. response code:" + resp.response_code); //change this to a return false
+
+	return true;
+}
+
+
+bool ftp_client::set_data_representation_type(std::string type)
+{
+	ftp_response resp;
+
+	send_command("TYPE " + type + "\r\n");
+
+	resp = recieve_response();
+
+	if (resp.response_code[0] != '2')
+		throw std::runtime_error("The server failed exececute command with. response code:" + resp.response_code); // change this to return false
+
+	return true;
+}
+
+
+// Give me some server info
 std::string ftp_client::help()
  {
 	 ftp_response resp;
@@ -83,28 +162,80 @@ std::string ftp_client::help()
 	 return resp.response_string;
  }
 
+
  // List all the contents of the current working dir
+// @todo add support for active ftp mode
 std::string ftp_client::list()
  {
 	 ftp_response resp;
 
-	 send_command("LIST\r\n");
+	 if (!set_passive_mode()) //
+		 return false;
+
+	 send_command("LIST -l\r\n");
 	 
-	 resp = recieve_response();
+	 setup_passive_data_connection();
 
-	 if (resp.response_code[0] != '2')
-		 throw std::runtime_error("The server failed to list the contents of the dir. response code:"+resp.response_code); //change this to a return false
+	 std::string listings;
 
-	 return resp.response_string;
+	 int bytes_recieved;
+
+	 do
+	 {
+		 char temp_buffer[ftp_client::BUFFER_SIZE];
+
+		 bytes_recieved = recv(data_connection->link, temp_buffer, sizeof(temp_buffer) - 1, 0);
+
+		 temp_buffer[bytes_recieved] = '\0';
+		 listings += temp_buffer;
+
+	 } while (bytes_recieved);
+
+	 return listings;
 
  }
+
+
+// Return the current working directorie
+std::string ftp_client::pwd()
+{
+	ftp_response resp;
+
+	send_command("PWD\r\n");
+
+	resp = recieve_response();
+
+	if (resp.response_code[0] != '2')
+		throw std::runtime_error("The server failed to execute command pwd. response code:" + resp.response_code); //change this to a return false
+
+	return resp.response_string;
+
+}
+
+
+// List all the contents of the current working dir
+bool ftp_client::cwd(std::string dir)
+{
+	ftp_response resp;
+
+	std::string change_dir = "CWD " + dir + "\r\n";
+
+	send_command(change_dir);
+
+	resp = recieve_response();
+
+	if (resp.response_code[0] != '2')
+		throw std::runtime_error("The server failed exececute command with. response code:" + resp.response_code); //change this to a return false
+
+	return true;
+}
 
 
 // Send data through the socket to an host
 void ftp_client::send_command(std::string command)
 {
 	// Convert string to c.str and send it via send method endpoint host
-	SSIZE_T bytes_sent = send(ftp_socket.link, command.c_str(), command.length(), 0);
+	SSIZE_T bytes_sent = send(control_connection.link, command.c_str(), command.length(), 0);
 
 	std::cout << "Sending data............" << std::endl;
 
@@ -124,7 +255,7 @@ ftp_client::ftp_response  ftp_client::recieve_response()
 
 		std::cout << "Revieving......... " << std::endl;
 
-		int bytes_recieved = recv(ftp_socket.link, temp_buffer, sizeof(temp_buffer) - 1, 0);
+		int bytes_recieved = recv(control_connection.link, temp_buffer, sizeof(temp_buffer) - 1, 0);
 
 		if (bytes_recieved < 0)
 			return response;
@@ -134,14 +265,31 @@ ftp_client::ftp_response  ftp_client::recieve_response()
 
 		response + temp_buffer;
 
-	} while (!response.complete());
+		std::cout << response.response_string;
 
-	std::cout << response.response_string << std::endl;
+	} while (!response.complete());
 
 	return response;
 
 }
 
+
+// parse the response of the PASV reply to get the data connection info
+std::string ftp_client::parse_data_connection_info(std::string lastline)
+{
+	std::string::iterator sub_start = std::find(lastline.begin(), lastline.end(), '(');
+	std::string::iterator sub_end = std::find(lastline.begin(), lastline.end(), ')');
+
+	if (sub_start == lastline.end() || sub_end == lastline.end())
+		throw std::runtime_error("The data sent from the server about the data connecion cannot be parsed");
+
+	std::string connection_info(sub_start + 1, sub_end);
+
+	if (connection_info.empty())
+		throw std::runtime_error("The server didnt send us any information about how the data connection");
+
+	return connection_info;
+}
 
 // ==================================details of the response subtype=========================================
 
@@ -181,6 +329,7 @@ std::vector<std::string> ftp_client::ftp_response::parse_lines()
 	return temp_lines;
 
 }
+
 
 // Check if we have reached the end of our response
 bool ftp_client::ftp_response::complete()

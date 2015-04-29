@@ -20,6 +20,15 @@ int main()
 		// Get some server info
 		std::cout << ftp.help();
 
+		// Print the current dir
+		ftp.pwd();
+		
+		// change dir
+		ftp.cwd("public_html");
+
+		// try and get a listing of our directorires
+		std::cout << ftp.list();
+
 	}
 	catch (std::runtime_error e)
 	{
