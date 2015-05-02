@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <fstream>
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
@@ -48,6 +49,8 @@ public:
 	std::string		help();
 	std::string		pwd();
 	bool			cwd(std::string dir);
+	bool			download(std::string file_name, std::ofstream& stream);
+	bool			quit();
 
 private:
 	std::string		host;
@@ -55,16 +58,16 @@ private:
 	connection		control_connection;
 	connection*		data_connection; // This is a pointer because we only know the port number which is required for construction after the fact
 
-	bool			set_data_representation_type(std::string type = "I");
+	void			set_data_representation_type(std::string type = "I");
 
 	void			send_command(std::string command);
 	ftp_response	recieve_response();
 
-	bool			set_passive_mode();
-	bool			setup_passive_data_connection();
+	void			set_passive_mode();
+	void			setup_passive_data_connection();
 	std::string		parse_data_connection_info(std::string lastline);
 
-	bool			set_active_mode(); 
+	void			set_active_mode(); 
 };
 
 #endif

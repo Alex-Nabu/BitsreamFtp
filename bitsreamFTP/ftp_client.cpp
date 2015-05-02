@@ -68,8 +68,8 @@ bool ftp_client::login(const std::string username, const std::string password)
 }
 
 // Set ftp data connections in passive mode
-// Set up passive data connection 
-bool ftp_client::set_passive_mode()
+// Bound response details to the data_connection property
+void ftp_client::set_passive_mode()
 {
 	ftp_response resp;
 
@@ -78,7 +78,7 @@ bool ftp_client::set_passive_mode()
 	resp = recieve_response();
 
 	if (resp.response_code[0] != '2')
-		return false;
+		throw std::runtime_error("failed to setup data connection.response code : " + resp.response_code);
 
 	//Now set the data port
 	std::string connection_info = parse_data_connection_info(resp.response_lines.back()); // give us the string with the host/port info
@@ -104,35 +104,32 @@ bool ftp_client::set_passive_mode()
 	// Set the ftp_client::data connection
 	data_connection = new connection(host, port); 
 
-	return true;
 }
 
 // Set ftp data connections in active mode
 // Setup active data connection
-bool ftp_client::set_active_mode()
+void ftp_client::set_active_mode()
 {
 	// @todo : write code to support active mode here
 	// @howto : bind the ftp_client::data_connecion to a random port and send its info over to server
-	return false;
 }
 
 
-bool ftp_client::setup_passive_data_connection()
+void ftp_client::setup_passive_data_connection()
 {
 	ftp_response resp;
 
-	data_connection->connect_socket(); // Set up the data connection
+	data_connection->connect_socket(TRUE); // Set up the data connection
 
 	resp = recieve_response();
 
 	if (resp.response_code != "150")
 		throw std::runtime_error("failed to setup data connection. response code:" + resp.response_code); //change this to a return false
 
-	return true;
 }
 
 
-bool ftp_client::set_data_representation_type(std::string type)
+void ftp_client::set_data_representation_type(std::string type)
 {
 	ftp_response resp;
 
@@ -143,7 +140,6 @@ bool ftp_client::set_data_representation_type(std::string type)
 	if (resp.response_code[0] != '2')
 		throw std::runtime_error("The server failed exececute command with. response code:" + resp.response_code); // change this to return false
 
-	return true;
 }
 
 
@@ -169,11 +165,11 @@ std::string ftp_client::list()
  {
 	 ftp_response resp;
 
-	 if (!set_passive_mode()) //
-		 return false;
+	 set_passive_mode();
 
 	 send_command("LIST -l\r\n");
-	 
+
+	 // Open and recive the data from the data connection
 	 setup_passive_data_connection();
 
 	 std::string listings;
@@ -190,6 +186,13 @@ std::string ftp_client::list()
 		 listings += temp_buffer;
 
 	 } while (bytes_recieved);
+
+
+	 // recieve the reply
+	 resp = recieve_response();
+
+	 if (resp.response_code[0] != '2') // 
+		 return resp.response_string;
 
 	 return listings;
 
@@ -231,6 +234,57 @@ bool ftp_client::cwd(std::string dir)
 }
 
 
+// Download a file from the server 
+bool ftp_client::download(std::string filename, std::ofstream& mystream)
+{
+
+	ftp_response resp;
+
+	set_data_representation_type("I"); // set data type to IMG for raw file transfers. (read the ftp rfc to get it)
+
+	set_passive_mode();
+
+	send_command("RETR " + filename + "\r\n");
+
+	setup_passive_data_connection();
+
+	int bytes_recieved;
+
+	do
+	{
+		char temp_buffer[ftp_client::BUFFER_SIZE];
+
+		bytes_recieved = recv(data_connection->link, temp_buffer, sizeof(temp_buffer), 0);
+
+		mystream.write(temp_buffer, bytes_recieved);
+
+	} while (bytes_recieved);
+
+
+	resp = recieve_response();
+
+	 if (resp.response_code[0] != '2')
+		 throw std::runtime_error("The server failed exececute command with. response code:" + resp.response_code);
+
+
+	return true;
+}
+
+// Close all connections to the server
+bool ftp_client::quit()
+{
+	ftp_response resp;
+
+	send_command("QUIT\r\n");
+
+	resp = recieve_response();
+
+	 if (resp.response_code[0] != '2')
+		 throw std::runtime_error("The server failed exececute command with. response code:" + resp.response_code);
+
+	return true;
+}
+
 // Send data through the socket to an host
 void ftp_client::send_command(std::string command)
 {
@@ -253,7 +307,7 @@ ftp_client::ftp_response  ftp_client::recieve_response()
 
 		char temp_buffer[ftp_client::BUFFER_SIZE];
 
-		std::cout << "Revieving......... " << std::endl;
+		std::cout << "Recieving......... " << std::endl;
 
 		int bytes_recieved = recv(control_connection.link, temp_buffer, sizeof(temp_buffer) - 1, 0);
 
