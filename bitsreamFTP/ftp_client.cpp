@@ -10,7 +10,10 @@
 
 ftp_client::ftp_client(std::string host, std::string port) : host(host), port(port), control_connection(host, port) {}
 
-ftp_client::~ftp_client() {}
+ftp_client::~ftp_client() 
+{
+	delete data_connection;
+}
 
 
 // Connect to the server
